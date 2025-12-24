@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Santa Generator</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const Gift = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={props.width || 24} height={props.height || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+                <polyline points="20 12 20 22 4 22 4 12"></polyline>
+                <rect x="2" y="7" width="20" height="5"></rect>
+                <line x1="12" y1="22" x2="12" y2="7"></line>
+                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path>
+                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path>
+            </svg>
+        );
+        const Users = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={props.width || 24} height={props.height || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        );
+        const Copy = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={props.width || 24} height={props.height || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        );
+        const Check = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={props.width || 24} height={props.height || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        );
+        const X = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={props.width || 24} height={props.height || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        );
+        const AlertCircle = (props) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={props.width || 24} height={props.height || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        );
+
+        function SecretSantaApp() {
+          const [mode, setMode] = useState('home');
+          const [participants, setParticipants] = useState('');
+          const [eventName, setEventName] = useState('');
+          const [generatedLinks, setGeneratedLinks] = useState([]);
+          const [copiedIndex, setCopiedIndex] = useState(null);
+          const [viewerAssignment, setViewerAssignment] = useState(null);
+          const [showRestrictions, setShowRestrictions] = useState(false);
+          const [restrictions, setRestrictions] = useState([]);
+          const [newRestriction, setNewRestriction] = useState({ giver: '', cannotReceive: '' });
+
+          useEffect(() => {
+            const hash = window.location.hash.slice(1);
+            if (hash) {
+              try {
+                const decoded = atob(hash);
+                const data = JSON.parse(decoded);
+                setViewerAssignment(data);
+                setMode('view');
+              } catch (e) {
+                console.error('Invalid code');
+              }
+            }
+          }, []);
+
+          const getParticipantsList = () => {
+            return participants
+              .split('\n')
+              .map(name => name.trim())
+              .filter(name => name.length > 0);
+          };
+
+          const addRestriction = () => {
+            if (!newRestriction.giver || !newRestriction.cannotReceive) {
+              alert('Please select both a giver and who they cannot draw');
+              return;
+            }
+
+            if (newRestriction.giver === newRestriction.cannotReceive) {
+              alert('A person cannot draw themselves (this is automatic)');
+              return;
+            }
+
+            const duplicate = restrictions.find(
+              r => r.giver === newRestriction.giver && r.cannotReceive === newRestriction.cannotReceive
+            );
+
+            if (duplicate) {
+              alert('This restriction already exists');
+              return;
+            }
+
+            setRestrictions([...restrictions, { ...newRestriction }]);
+            setNewRestriction({ giver: '', cannotReceive: '' });
+          };
+
+          const removeRestriction = (index) => {
+            setRestrictions(restrictions.filter((_, i) => i !== index));
+          };
+
+          const generateAssignments = () => {
+            if (!eventName.trim() || !participants.trim()) {
+              alert('Please enter an event name and at least 2 participants');
+              return;
+            }
+
+            const names = getParticipantsList();
+
+            if (names.length < 2) {
+              alert('Please enter at least 2 participants');
+              return;
+            }
+
+            const invalidRestrictions = restrictions.filter(
+              r => !names.includes(r.giver) || !names.includes(r.cannotReceive)
+            );
+
+            if (invalidRestrictions.length > 0) {
+              alert('Some restrictions reference participants that are not in the list. Please update restrictions.');
+              return;
+            }
+
+            const assignments = createSecretSantaAssignments(names, restrictions);
+            
+            if (!assignments) {
+              alert('Unable to create valid Secret Santa assignments with these restrictions. The restrictions may be too limiting. Try removing some restrictions.');
+              return;
+            }
+
+            const baseUrl = window.location.origin + window.location.pathname;
+            const links = assignments.map(assignment => {
+              const data = {
+                event: eventName,
+                giver: assignment.giver,
+                receiver: assignment.receiver
+              };
+              const encoded = btoa(JSON.stringify(data));
+              return {
+                giver: assignment.giver,
+                receiver: assignment.receiver,
+                url: `${baseUrl}#${encoded}`
+              };
+            });
+
+            setGeneratedLinks(links);
+            setMode('organize');
+          };
+
+          const createSecretSantaAssignments = (names, restrictions) => {
+            const maxAttempts = 1000;
+            
+            const restrictionMap = new Map();
+            restrictions.forEach(r => {
+              if (!restrictionMap.has(r.giver)) {
+                restrictionMap.set(r.giver, new Set());
+              }
+              restrictionMap.get(r.giver).add(r.cannotReceive);
+            });
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+              const receivers = shuffleArray([...names]);
+              const assignments = [];
+              let valid = true;
+
+              for (let i = 0; i < names.length; i++) {
+                const giver = names[i];
+                const receiver = receivers[i];
+
+                if (giver === receiver) {
+                  valid = false;
+                  break;
+                }
+
+                if (restrictionMap.has(giver) && restrictionMap.get(giver).has(receiver)) {
+                  valid = false;
+                  break;
+                }
+
+                assignments.push({ giver, receiver });
+              }
+
+              if (valid) {
+                return assignments;
+              }
+            }
+
+            return createAssignmentsWithBacktracking(names, restrictionMap);
+          };
+
+          const createAssignmentsWithBacktracking = (names, restrictionMap) => {
+            const n = names.length;
+            const assignments = [];
+            const used = new Set();
+
+            const backtrack = (giverIndex) => {
+              if (giverIndex === n) {
+                return true;
+              }
+
+              const giver = names[giverIndex];
+              const cannotReceive = restrictionMap.get(giver) || new Set();
+
+              for (let i = 0; i < n; i++) {
+                const receiver = names[i];
+
+                if (used.has(receiver) || receiver === giver || cannotReceive.has(receiver)) {
+                  continue;
+                }
+
+                assignments.push({ giver, receiver });
+                used.add(receiver);
+
+                if (backtrack(giverIndex + 1)) {
+                  return true;
+                }
+
+                assignments.pop();
+                used.delete(receiver);
+              }
+
+              return false;
+            };
+
+            if (backtrack(0)) {
+              return assignments;
+            }
+
+            return null;
+          };
+
+          const shuffleArray = (array) => {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+          };
+
+          const copyToClipboard = async (text, index) => {
+            try {
+              await navigator.clipboard.writeText(text);
+              setCopiedIndex(index);
+              setTimeout(() => setCopiedIndex(null), 2000);
+            } catch (err) {
+              alert('Failed to copy. Please copy manually.');
+            }
+          };
+
+          const resetApp = () => {
+            setMode('home');
+            setParticipants('');
+            setEventName('');
+            setGeneratedLinks([]);
+            setViewerAssignment(null);
+            setShowRestrictions(false);
+            setRestrictions([]);
+            setNewRestriction({ giver: '', cannotReceive: '' });
+            window.location.hash = '';
+          };
+
+          if (mode === 'view' && viewerAssignment) {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4 flex items-center justify-center">
+                <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+                  <div className="text-center mb-6">
+                    <Gift className="w-16 h-16 mx-auto text-red-500 mb-4" />
+                    <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                      {viewerAssignment.event}
+                    </h1>
+                  </div>
+
+                  <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-6">
+                    <p className="text-gray-700 text-lg mb-4">
+                      Hi <span className="font-bold text-green-700">{viewerAssignment.giver}</span>!
+                    </p>
+                    <p className="text-gray-600 mb-2">You are the Secret Santa for:</p>
+                    <p className="text-3xl font-bold text-green-700 text-center py-4">
+                      {viewerAssignment.receiver}
+                    </p>
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-yellow-800">
+                      🤫 Remember: Keep this a secret! Don't share your link with others.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={resetApp}
+                    className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded transition-colors"
+                  >
+                    Back to Home
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (mode === 'organize') {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4">
+                <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-8">
+                  <div className="text-center mb-8">
+                    <Gift className="w-16 h-16 mx-auto text-red-500 mb-4" />
+                    <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                      Secret Santa Links Generated!
+                    </h1>
+                    <p className="text-gray-600">
+                      Send each person their unique link. Don't mix them up! 🎅
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 mb-6">
+                    {generatedLinks.map((link, index) => (
+                      <div
+                        key={index}
+                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-gray-800">{link.giver}</span>
+                          <button
+                            onClick={() => copyToClipboard(link.url, index)}
+                            className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors"
+                          >
+                            {copiedIndex === index ? (
+                              <>
+                                <Check className="w-4 h-4" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4" />
+                                Copy Link
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <div className="bg-gray-100 rounded p-2 text-xs text-gray-600 break-all font-mono">
+                          {link.url}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-red-800">
+                      ⚠️ <strong>Important:</strong> Make sure each person receives ONLY their own link. 
+                      Once you send these links, close this page - you don't want to accidentally see the assignments!
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={resetApp}
+                    className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 px-4 rounded transition-colors"
+                  >
+                    Create Another Event
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          const names = getParticipantsList();
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 p-4 flex items-center justify-center">
+              <div className="max-w-2xl w-full bg-white rounded-lg shadow-xl p-8">
+                <div className="text-center mb-8">
+                  <Gift className="w-20 h-20 mx-auto text-red-500 mb-4" />
+                  <h1 className="text-4xl font-bold text-gray-800 mb-2">Secret Santa Generator</h1>
+                  <p className="text-gray-600">
+                    Organize your Secret Santa gift exchange with randomly generated assignments
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Event Name
+                    </label>
+                    <input
+                      type="text"
+                      value={eventName}
+                      onChange={(e) => setEventName(e.target.value)}
+                      placeholder="e.g., Office Holiday Party 2024"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Participants (one per line)
+                    </label>
+                    <textarea
+                      value={participants}
+                      onChange={(e) => setParticipants(e.target.value)}
+                      placeholder="Alice&#10;Bob&#10;Charlie&#10;Diana"
+                      rows={8}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono"
+                    />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Enter at least 2 names, one per line
+                    </p>
+                  </div>
+
+                  <div>
+                    <button
+                      onClick={() => setShowRestrictions(!showRestrictions)}
+                      className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2"
+                    >
+                      <AlertCircle className="w-4 h-4" />
+                      {showRestrictions ? 'Hide' : 'Add'} Restrictions (Optional)
+                    </button>
+
+                    {showRestrictions && (
+                      <div className="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                        <p className="text-sm text-gray-600 mb-4">
+                          Set rules for who cannot draw whom (e.g., spouses, couples, family members)
+                        </p>
+
+                        {names.length >= 2 ? (
+                          <div className="space-y-4">
+                            <div className="flex gap-2">
+                              <select
+                                value={newRestriction.giver}
+                                onChange={(e) => setNewRestriction({ ...newRestriction, giver: e.target.value })}
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              >
+                                <option value="">Select person...</option>
+                                {names.map(name => (
+                                  <option key={name} value={name}>{name}</option>
+                                ))}
+                              </select>
+                              <span className="flex items-center text-gray-500 text-sm">cannot draw</span>
+                              <select
+                                value={newRestriction.cannotReceive}
+                                onChange={(e) => setNewRestriction({ ...newRestriction, cannotReceive: e.target.value })}
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              >
+                                <option value="">Select person...</option>
+                                {names.map(name => (
+                                  <option key={name} value={name}>{name}</option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={addRestriction}
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+                              >
+                                Add
+                              </button>
+                            </div>
+
+                            {restrictions.length > 0 && (
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium text-gray-700">Active Restrictions:</p>
+                                {restrictions.map((r, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between bg-white border border-gray-200 rounded px-3 py-2"
+                                  >
+                                    <span className="text-sm text-gray-700">
+                                      <strong>{r.giver}</strong> cannot draw <strong>{r.cannotReceive}</strong>
+                                    </span>
+                                    <button
+                                      onClick={() => removeRestriction(index)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">
+                            Add participants first to set restrictions
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={generateAssignments}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Users className="w-5 h-5" />
+                    Generate Secret Santa Assignments
+                  </button>
+                </div>
+
+                <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-blue-900 mb-2">How it works:</h3>
+                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Enter your event name and participant names</li>
+                    <li>Optionally add restrictions (e.g., couples can't draw each other)</li>
+                    <li>Click generate to create unique links for each person</li>
+                    <li>Send each participant their unique link (via email, text, etc.)</li>
+                    <li>Each person opens their link to see who they're buying for</li>
+                    <li>No data is stored anywhere - it's all in the links! 🎁</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SecretSantaApp />);
+    </script>
+</body>
+</html>
