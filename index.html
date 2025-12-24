@@ -255,9 +255,11 @@
             return shuffled;
           };
 
-          const copyToClipboard = async (text, index) => {
+          const copyToClipboard = async (link, index) => {
+            const message = `🎅 Secret Santa Time! 🎁\n\nYou've been invited to participate in ${eventName}!\n\nClick your unique link below to find out who you'll be getting a gift for:\n${link.url}\n\n⚠️ Important: Keep this link private - it's only for you!\nDon't share it with anyone else, as it reveals your Secret Santa assignment.\nHappy gifting! 🎄`;
+            
             try {
-              await navigator.clipboard.writeText(text);
+              await navigator.clipboard.writeText(message);
               setCopiedIndex(index);
               setTimeout(() => setCopiedIndex(null), 2000);
             } catch (err) {
