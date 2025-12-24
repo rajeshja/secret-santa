@@ -371,6 +371,26 @@
                   </div>
 
                   <button
+                    onClick={() => {
+                      const allMessages = generatedLinks.map(link => 
+                        `${'='.repeat(50)}\nTO: ${link.giver}\n${'='.repeat(50)}\n\n🎅 Secret Santa Time! 🎁\n\nYou've been invited to participate in ${eventName}!\n\nClick your unique link below to find out who you'll be getting a gift for:
+                  ${link.url}\n\n⚠️ Important: Keep this link private - it's only for you!\nDon't share it with anyone else, as it reveals your Secret Santa assignment.\n\nHappy gifting! 🎄
+
+                  `
+                      ).join('\n\n');
+                      
+                      navigator.clipboard.writeText(allMessages).then(() => {
+                        alert('All messages copied! You can now paste them into a document for safekeeping.');
+                      }).catch(() => {
+                        alert('Failed to copy. Please try copying individual links instead.');
+                      });
+                    }}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-4 rounded transition-colors mb-4"
+                  >
+                    📋 Copy All Messages to Clipboard
+                  </button>
+
+                  <button
                     onClick={resetApp}
                     className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-3 px-4 rounded transition-colors"
                   >
